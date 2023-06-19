@@ -1,235 +1,207 @@
-(function () {
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-  hljs.highlightAll();
+const notes = [
+  {f:262,d:.5,t:"Hap",p:p1},
+  {f:262,d:.5,t:"py&nbsp;",p:p1},
+  {f:294,d:1,t:"Birth",p:p1},
+  {f:262,d:1,t:"day&nbsp;",p:p1},
+  {f:349,d:1,t:"To&nbsp;",p:p1},
+  {f:330,d:2,t:"You",p:p1},
+  
+  {f:262,d:.5,t:"Hap",p:p2},
+  {f:262,d:.5,t:"py&nbsp;",p:p2},
+  {f:294,d:1,t:"Birth",p:p2},
+  {f:262,d:1,t:"day&nbsp;",p:p2},
+  {f:392,d:1,t:"To&nbsp;",p:p2},
+  {f:349,d:2,t:"You",p:p2},
+  
+  {f:262,d:.5,t:"Hap",p:p3},
+  {f:262,d:.5,t:"py&nbsp;",p:p3},
+  {f:523,d:1,t:"Birth",p:p3},
+  {f:440,d:1,t:"day&nbsp;",p:p3},
+  {f:349,d:1,t:"Dear&nbsp;",p:p3},
+  {f:330,d:1,t:"Dar",p:p3},
+  {f:294,d:3,t:"win",p:p3},
+  
+  {f:466,d:.5,t:"Hap",p:p4},
+  {f:466,d:.5,t:"py&nbsp;",p:p4},
+  {f:440,d:1,t:"Birth",p:p4},
+  {f:349,d:1,t:"day&nbsp;",p:p4},
+  {f:392,d:1,t:"To&nbsp;",p:p4},
+  {f:349,d:2,t:"You",p:p4},
+];
 
-  var Confetti = function (options) {
-    var t = this;
-    t.o = options || {};
+//DOM
+notes.map((n) => createSpan(n));
 
+function createSpan(n){
+  n.sp = document.createElement("span");
+  n.sp.innerHTML = n.t;
+  n.p.appendChild(n.sp);
+}
 
-    //DOM storage
-    t.doms = {};
+// SOUND
+let speed = inputSpeed.value;
+let flag = false;
+let sounds = [];
 
-    //Vars storage
-    t.vars = {
-      confettiFrequency: 3, //DEP???
-      confettiColors: ['#fce18a', '#ff726d', '#b48def', '#f4306d'],
-      confettiSpeed: ['slow', 'medium', 'fast'],
-      confetiCount: 0,
-      confetiLimit: 100,
-      confettiDestroyTime: 3000, //ms
-      confettiRenderTime: 60, //ms
-      confettiSizeRange: [3, 7] };
+class Sound{
+  constructor(freq,dur,i){
+    this.stop = true;
+    this.frequency = freq;// la frecuencia
+    this.waveform = "triangle";// la forma de onda
+    this.dur = dur;// la duración en segundos
+    this.speed = this.dur*speed;
+    this.initialGain = .15;
+    this.index = i;
+    this.sp = notes[i].sp
+  }
+  
+  cease(){
+    this.stop = true;
+    this.sp.classList.remove("jump");
+    //this.sp.style.animationDuration = `${this.speed}s`;
+    if(this.index < sounds.length-1){sounds[this.index+1].play();}
+    if(this.index == sounds.length-1){flag = false;}
+  }
+  
+  play(){
+   // crea un nuevo oscillator
+   this.oscillator = audioCtx.createOscillator();
+   // crea un nuevo nodo de ganancia 
+   this.gain = audioCtx.createGain();
+   // establece el valor inicial del volumen del sonido 
+   this.gain.gain.value = this.initialGain;
+   // establece el tipo de oscillator  
+   this.oscillator.type = this.waveform;
+   // y el valor de la frecuencia 
+   this.oscillator.frequency.value = this.frequency;
+   // el volumen del sonido baja exponencialmente     
+   this.gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + this.speed);
+   // conecta el oscillator con el nodo de ganancia 
+   this.oscillator.connect(this.gain);
+   // y la ganancia con el dispositivo de destino
+   this.gain.connect(audioCtx.destination);
+   // inicia el oscillator 
+   this.oscillator.start(audioCtx.currentTime);
+   this.sp.setAttribute("class", "jump");
+   this.stop = false;
+   // para el oscillator después de un tiempo (this.speed) 
+   this.oscillator.stop(audioCtx.currentTime + this.speed); 
+   this.oscillator.onended = ()=> {this.cease();}
+  }  
+}
 
-
-    //classes store
-    t.classes = {
-      'confettiContainer': 'confetti-container' };
-
-
-    //callbacks store
-    t.callbacks = {};
-
-    //Init if options are valid
-    if (t.handleOptions()) {
-      t.init();
-    }
-
-  };
-
-
-
-  Confetti.prototype.handleOptions = function () {
-    var t = this;
-
-    if (t.o.target) {
-      t.doms.target = t.o.target;
-    } else {
-      throw 'Confetti.options.target - is not valid DOM element';
-      return false;
-    }
-
-    if (!!t.o.onstart) {
-      t.callbacks.onstart = t.o.onstart;
-    }
-
-    if (!!t.o.ondone) {
-      t.callbacks.ondone = t.o.ondone;
-    }
-
-    return true;
-  };
-
-  Confetti.prototype.setupElements = function () {
-    var t = this,
-    containerDOM = document.createElement('div'),
-    targetPosition = t.doms.target.style.position;
-
-    containerDOM.className = t.classes['confettiContainer'];
-
-    if (targetPosition != 'relative' || targetPosition != 'absolute') {
-      t.doms.target.style.position = 'relative';
-    }
-
-    t.doms.target.appendChild(containerDOM);
-    t.doms.containerDOM = containerDOM;
-  };
-
-  Confetti.prototype.getContainerSize = function () {
-    var t = this;
-
-    return Math.floor(Math.random() * t.vars.confettiSizeRange[0]) + t.vars.confettiSizeRange[1] + 'px';
-  };
-
-  Confetti.prototype.getConfettiColor = function () {
-    var t = this;
-
-    return t.vars.confettiColors[Math.floor(Math.random() * t.vars.confettiColors.length)];
-  };
-
-
-  Confetti.prototype.getConfettiSpeed = function () {
-    var t = this;
-
-    return t.vars.confettiSpeed[Math.floor(Math.random() * t.vars.confettiSpeed.length)];
-  };
-
-
-  Confetti.prototype.getConfettiPosition = function () {
-    var t = this;
-
-    return Math.floor(Math.random() * t.doms.target.offsetWidth) + 'px';
-  };
-
-  Confetti.prototype.generateConfetti = function () {var _confettiDOM$classLis, _confettiDOM$classLis2;
-    var t = this,
-    confettiDOM = document.createElement('div'),
-    confettiSize = t.getContainerSize(),
-    confettiBackground = t.getConfettiColor(),
-    confettiLeft = t.getConfettiPosition(),
-    confettiSpeed = t.getConfettiSpeed();
-
-    confettiDOM === null || confettiDOM === void 0 ? void 0 : (_confettiDOM$classLis = confettiDOM.classList) === null || _confettiDOM$classLis === void 0 ? void 0 : _confettiDOM$classLis.add('confetti');
-    confettiDOM === null || confettiDOM === void 0 ? void 0 : (_confettiDOM$classLis2 = confettiDOM.classList) === null || _confettiDOM$classLis2 === void 0 ? void 0 : _confettiDOM$classLis2.add('confetti-animation-' + confettiSpeed);
-    confettiDOM.style.left = confettiLeft;
-    confettiDOM.style.width = confettiSize;
-    confettiDOM.style.height = confettiSize;
-    confettiDOM.style.backgroundColor = confettiBackground;
-
-    confettiDOM.removeTimeout = setTimeout(function () {
-      confettiDOM.parentNode.removeChild(confettiDOM);
-    }, t.vars.confettiDestroyTime);
-
-    t.doms.containerDOM.appendChild(confettiDOM);
-  };
-
-  Confetti.prototype.renderConfetti = function () {
-    var t = this;
-
-    if (t.callbacks.onstart) {
-      t.callbacks.onstart();
-    }
-
-    t.confettiInterval = setInterval(function () {
-      t.vars.confetiCount++;
-
-      if (t.vars.confetiCount > t.vars.confetiLimit) {
-        if (t.callbacks.ondone) {
-          t.callbacks.ondone();
-        }
-        clearInterval(t.confettiInterval);
-        return false;
-      } else {
-        t.generateConfetti();
-      }
+for(let i=0; i < notes.length; i++){
+  let sound = new Sound(notes[i].f, notes[i].d,i);
+  sounds.push(sound);
+}
 
 
-    }, t.vars.confettiRenderTime);
-  };
-
-  Confetti.prototype.restart = function (instance) {
-    var t = this || instance;
-    t.vars.confetiCount = 0;
-    t.renderConfetti();
-  };
-
-  Confetti.prototype.start = Confetti.prototype.restart;
-
-  Confetti.prototype.stop = function () {
-    var t = this || instance;
-    t.vars.confetiCount = t.vars.confetiLimit;
-  };
-
-
-  Confetti.prototype.init = function () {
-    var t = this;
-
-    t.setupElements();
-  };
-
-
-  const content = document.querySelector('.content');
-  const gradient = document.querySelector('#background');
-  const cardWrapper = document.querySelector('.card-wrapper');
-  const audio = document.querySelector('audio');
-  const confetti = new Confetti({ target: content });
-
-  cardWrapper.addEventListener('click', () => {
-    const isActive = cardWrapper.classList.contains('active');
-
-    if (isActive) {
-      cardWrapper.classList.remove('active');
-      audio.pause();
-      confetti.stop();
-      gradient.style.opacity = 0;
-    } else {
-      cardWrapper.classList.add('active');
-      audio.play();
-      confetti.start();
-      gradient.style.opacity = 1;
-    }
+// EVENTS
+wishes.addEventListener("click",function(e){
+  if(e.target.id != "inputSpeed" && !flag){
+  sounds[0].play();
+  flag = true;}
+  },false);
+                        
+                        
+inputSpeed.addEventListener("input",function(e){
+  speed = this.value;
+  sounds.map((s) => {
+    s.speed = s.dur*speed
   });
+},false);
 
+// CANVAS
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+let cw = canvas.width = window.innerWidth,
+  cx = cw / 2;
+let ch = canvas.height = window.innerHeight,
+  cy = ch / 2;
 
-  //  https://codesandbox.io/s/3d-hover-effect-hqy6h?file=/src/index.js:0-944
-  const card = cardWrapper;
-  const motionMatchMedia = window.matchMedia("(prefers-reduced-motion)");
-  const THRESHOLD = 30;
+let requestId = null;
 
-  function handleHover(e) {
-    const { clientX, clientY, currentTarget } = e;
-    const { clientWidth, clientHeight, offsetLeft, offsetTop } = currentTarget;
+const colors = ["#93DFB8","#FFC8BA","#E3AAD6","#B5D8EB","#FFBDD8"];
 
-    const horizontal = (clientX - offsetLeft) / clientWidth;
-    const vertical = (clientY - offsetTop) / clientHeight;
-    const rotateX = (THRESHOLD / 2 - horizontal * THRESHOLD).toFixed(2);
-    const rotateY = (vertical * THRESHOLD - THRESHOLD / 2).toFixed(2);
-
-    card.style.transform = `perspective(${clientWidth}px) rotateX(${rotateY}deg) rotateY(${rotateX}deg) scale3d(1, 1, 1)`;
+class Particle{
+  constructor(){
+    this.x = Math.random() * cw;
+    this.y = Math.random() * ch;
+    this.r = 15 + ~~(Math.random() * 20);//radius of the circumcircle
+    this.l = 3 + ~~(Math.random() * 2);//polygon sides
+    this.a = 2*Math.PI/this.l;// angle between polygon vertices
+    this.rot = Math.random()*Math.PI;// polygon rotation
+    this.speed = .05 + Math.random()/2;
+    this.rotSpeed = 0.005 + Math.random()*.005;
+    this.color = colors[~~(Math.random() * colors.length)];
   }
-
-  function resetStyles(e) {
-    card.style.transform = `perspective(${e.currentTarget.clientWidth}px) rotateX(0deg) rotateY(0deg)`;
+  update(){
+    if(this.y < -this.r){
+      this.y = ch + this.r;
+      this.x = Math.random() * cw;
+    }
+    this.y -= this.speed;
   }
-
-  if (!motionMatchMedia.matches) {
-    card.addEventListener("mousemove", handleHover);
-    card.addEventListener("mouseleave", resetStyles);
+  draw(){
+    ctx.save();
+    ctx.translate(this.x,this.y);
+    ctx.rotate(this.rot);
+    ctx.beginPath();
+    for( let i = 0; i < this.l; i++ ){
+		let x = this.r * Math.cos( this.a*i );
+		let y = this.r * Math.sin( this.a*i );
+		ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = this.color;
+    ctx.stroke();
+    
+    ctx.restore();
   }
+  
+}
 
-
-  new Granim({
-    element: '#gradient',
-    direction: 'radial',
-    isPausedWhenNotInView: true,
-    states: {
-      "default-state": {
-        gradients: [
-        ['#ff8faf', '#ffe5ed'],
-        ['#f38fff', '#ffe5ed'],
-        ['#ff8f8f', '#ffe5ed']] } } });
+let particles = [];
+for(let i = 0; i < 20; i++){
+let p = new Particle();
+particles.push(p)
+}
 
 
 
+function Draw() {
+requestId = window.requestAnimationFrame(Draw);
+//ctx.globalAlpha=0.65;
+ctx.clearRect(0,0,cw,ch);
+particles.map((p) => {
+  p.rot += p.rotSpeed;
+  p.update();
+  p.draw();
+})
 
-})();
+}
+
+
+function Init() {
+	if (requestId) {
+		window.cancelAnimationFrame(requestId);
+		requestId = null;
+}
+
+
+cw = canvas.width = window.innerWidth,cx = cw / 2;
+ch = canvas.height = window.innerHeight,cy = ch / 2;
+
+//particles.map((p) => p.update());
+Draw();
+};
+
+setTimeout(function() {
+		Init();
+		window.addEventListener('resize', Init, false);
+}, 15);
+
+
