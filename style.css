@@ -47,6 +47,16 @@ body {
   color: #b83939;
   font-family: "Comic Sans MS", Arial, Helvetica, sans-serif;
 }
+.name1{
+  display: flex;
+  justify-content: center;
+  padding: 50px;
+  font-size: 50px;
+  color: #546e7a;
+  font-family: "Comic Sans MS", Arial, Helvetica, sans-serif;
+}
+
+
 .balloon {
   width: 76px;
   height: 100px;
