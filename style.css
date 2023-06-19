@@ -39,7 +39,14 @@ body {
   color: #4f6d7a;
   font-family: "Comic Sans MS", Arial, Helvetica, sans-serif;
 }
-
+.redtxt{
+  display: flex;
+  justify-content: center;
+  padding: 50px;
+  font-size: 100px;
+  color: #b83939;
+  font-family: "Comic Sans MS", Arial, Helvetica, sans-serif;
+}
 .balloon {
   width: 76px;
   height: 100px;
